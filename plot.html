@@ -71,12 +71,36 @@
             return theta.map(value => value + Math.random() * sigma);
         }
 
-        // Simulated data for plotting
-        const X_test = Array.from({ length: 10 }, (_, i) => i + 1); // Whole numbers from 1 to 10
-        const y_test = X_test.map(x => 3 * x + 5 + (Math.random() - 0.5) * 3); // Noisy test data
-        const theta_ols = [5, 3]; // [intercept, slope] of the original linear model
+        // Function to generate random data points for X and Y
+        function generateRandomData(numPoints = 50) {
+            const X = Array.from({ length: numPoints }, () => Math.random() * 10); // Random x values in [0, 10]
+            const y = X.map(x => 3 * x + 5 + (Math.random() - 0.5) * 3); // Linear relationship with noise
+            return { X, y };
+        }
+
+        // Function to perform linear regression and find theta (intercept, slope)
+        function linearRegression(X, y) {
+            const n = X.length;
+            const xMean = X.reduce((acc, val) => acc + val, 0) / n;
+            const yMean = y.reduce((acc, val) => acc + val, 0) / n;
+
+            let numerator = 0;
+            let denominator = 0;
+
+            for (let i = 0; i < n; i++) {
+                numerator += (X[i] - xMean) * (y[i] - yMean);
+                denominator += (X[i] - xMean) ** 2;
+            }
+
+            const slope = numerator / denominator;
+            const intercept = yMean - slope * xMean;
+            return [intercept, slope];
+        }
+
         const sensitivity = 1;
         const delta = 1e-5;
+        let { X: X_test, y: y_test } = generateRandomData(); // Generate random data points
+        let theta_ols = linearRegression(X_test, y_test); // Perform linear regression on random data
 
         // Initial chart setup
         let chart = new Chart(document.getElementById('noisePlot'), {
