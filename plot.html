@@ -4,9 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive Noise Plot with PyScript</title>
+    
     <!-- Include PyScript -->
     <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
     <script defer src="https://pyscript.net/latest/pyscript.js"></script>
+
+    <!-- Include a PyScript configuration to specify packages -->
+    <py-config>
+        packages = ["matplotlib", "numpy", "ipywidgets"]
+    </py-config>
+
     <!-- Include Matplotlib CSS for rendering plots -->
     <style>
         body {
@@ -29,20 +36,19 @@
             import numpy as np
             from ipywidgets import interact, widgets
 
-            # Example data and functions (Replace these with your actual implementation)
-            # Simulating X_test, y_test, y_pred_olsr, theta_ols, etc.
+            # Simulated data for demonstration
             X_test = np.linspace(0, 10, 100)
             y_test = 3 * X_test + 5 + np.random.normal(0, 3, size=X_test.shape)
             y_pred_olsr = 3 * X_test + 5
             X_test_b = np.c_[np.ones((100, 1)), X_test]  # Add bias term
             theta_ols = np.array([5, 3])  # Example OLS parameters
 
-            # Placeholder for Laplace mechanism function
+            # Laplace mechanism function
             def laplace_mechanism(theta, sensitivity, epsilon):
                 noise = np.random.laplace(0, sensitivity / epsilon, size=theta.shape)
                 return theta + noise
 
-            # Placeholder for Gaussian noise function
+            # Gaussian noise function
             delta = 1e-5
             sensitivity = 1
             def add_gaussian_noise(theta, epsilon, delta, sensitivity):
