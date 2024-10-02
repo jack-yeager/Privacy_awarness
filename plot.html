@@ -11,7 +11,7 @@
 
     <!-- Include a PyScript configuration to specify packages -->
     <py-config>
-        packages = ["matplotlib", "numpy"]
+        packages = ["matplotlib", "numpy", "base64"]
     </py-config>
 
     <!-- Include Matplotlib CSS for rendering plots -->
@@ -25,6 +25,10 @@
         }
         .controls {
             margin: 20px 0;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
         }
     </style>
 </head>
@@ -55,6 +59,8 @@
     <py-script>
         import matplotlib.pyplot as plt
         import numpy as np
+        import base64
+        from io import BytesIO
 
         # Simulated data for demonstration
         X_test = np.linspace(0, 10, 100)
@@ -93,9 +99,13 @@
             plt.title(f'Effect of Epsilon={epsilon} with {noise_type} noise')
             plt.legend()
 
-            # Save the plot as an image
-            plt.savefig("/mnt/data/plot.png")
+            # Save plot to buffer and encode as base64
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png')
             plt.close()
+            buffer.seek(0)
+            img_data = base64.b64encode(buffer.read()).decode('utf-8')
+            return img_data
 
     </py-script>
 
@@ -121,10 +131,10 @@
             const noiseType = noiseTypeSelect.value;
             const epsilon = parseFloat(epsilonInput.value);
             pyscript.runPython(`
-                update_plot("${noiseType}", ${epsilon})
-            `).then(() => {
+                img_data = update_plot("${noiseType}", ${epsilon})
+            `).then((result) => {
                 // After Python code runs, update the image source
-                document.getElementById("plot-image").src = "/mnt/data/plot.png";
+                document.getElementById("plot-image").src = "data:image/png;base64," + result;
             });
         }
     </script>
