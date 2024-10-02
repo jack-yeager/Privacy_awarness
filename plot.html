@@ -47,10 +47,12 @@
     </div>
 
     <!-- Div to Display the Plot -->
-    <div id="plot"></div>
+    <div id="plot">
+        <img id="plot-image" src="" alt="Plot will appear here">
+    </div>
 
     <!-- PyScript to Execute Python Code -->
-    <py-script output="plot">
+    <py-script>
         import matplotlib.pyplot as plt
         import numpy as np
 
@@ -90,10 +92,11 @@
             plt.plot(X_test, y_pred_olsr, label='without noise', color='yellow')
             plt.title(f'Effect of Epsilon={epsilon} with {noise_type} noise')
             plt.legend()
-            plt.show()
 
-        # Initial plot
-        update_plot("Laplace", 1)
+            # Save the plot as an image
+            plt.savefig("/mnt/data/plot.png")
+            plt.close()
+
     </py-script>
 
     <!-- JavaScript for Interactivity -->
@@ -119,7 +122,10 @@
             const epsilon = parseFloat(epsilonInput.value);
             pyscript.runPython(`
                 update_plot("${noiseType}", ${epsilon})
-            `);
+            `).then(() => {
+                // After Python code runs, update the image source
+                document.getElementById("plot-image").src = "/mnt/data/plot.png";
+            });
         }
     </script>
 
