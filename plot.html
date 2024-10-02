@@ -4,155 +4,122 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive Noise Plot with Chart.js</title>
-
-    <!-- Include Chart.js from CDN -->
+    
+    <!-- Include Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script defer src="https://pyscript.net/latest/pyscript.js"></script>
+    <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
+
+    <py-config>
+        packages = ["numpy", "ipywidgets"]
+    </py-config>
 
     <style>
         body {
             font-family: Arial, sans-serif;
         }
-        .container {
+        .pyscript-container {
             width: 80%;
             margin: 0 auto;
-            text-align: center;
-        }
-        canvas {
-            max-width: 80%;
-            height: 400px;
         }
     </style>
 </head>
 <body>
-
-    <div class="container">
-        <h1>Interactive Noise Plot</h1>
-        <p>Select a noise type and adjust the epsilon value to see its effect:</p>
-
-        <!-- Controls for noise type and epsilon -->
-        <label for="noise-type">Noise Type:</label>
-        <select id="noise-type">
-            <option value="Laplace">Laplace</option>
-            <option value="Gaussian">Gaussian</option>
-        </select>
-
-        <label for="epsilon">Epsilon:</label>
-        <input type="range" id="epsilon" min="0.01" max="20" value="1" step="0.01" />
-        <span id="epsilon-value">1</span>
-
-        <!-- Canvas for Chart.js Plot -->
-        <canvas id="noisePlot" width="400" height="200"></canvas>
+    
+    <h1>Interactive Noise Plot</h1>
+    <p>Select a noise type and adjust the epsilon value to see its effect:</p>
+    
+    <div id="plot-container">
+        <canvas id="noisePlot"></canvas>
     </div>
+    
+    <py-script>
+        import numpy as np
+        from ipywidgets import interact, widgets
+        from js import document
 
-    <script>
-        const epsilonInput = document.getElementById('epsilon');
-        const epsilonValue = document.getElementById('epsilon-value');
-        const noiseTypeSelect = document.getElementById('noise-type');
+        # Simulated data for demonstration
+        X_test = np.linspace(1, 7, 100)  # Adjusted to integers 1 to 7
+        y_test = 3 * X_test + 5 + np.random.normal(0, 3, size=X_test.shape)
+        y_pred_olsr = 3 * X_test + 5
+        X_test_b = np.c_[np.ones((100, 1)), X_test]  # Add bias term
+        theta_ols = np.array([5, 3])  # Example OLS parameters
 
-        // Update epsilon value display
-        epsilonInput.addEventListener('input', () => {
-            epsilonValue.textContent = epsilonInput.value;
-            updatePlot();
-        });
+        # Laplace mechanism function
+        def laplace_mechanism(theta, sensitivity, epsilon):
+            noise = np.random.laplace(0, sensitivity / epsilon, size=theta.shape)
+            return theta + noise
 
-        // Update plot when noise type changes
-        noiseTypeSelect.addEventListener('change', () => {
-            updatePlot();
-        });
+        # Gaussian noise function
+        delta = 1e-5
+        sensitivity = 1
+        def add_gaussian_noise(theta, epsilon, delta, sensitivity):
+            sigma = sensitivity * np.sqrt(2 * np.log(1.25 / delta)) / epsilon
+            noise = np.random.normal(0, sigma, size=theta.shape)
+            return theta + noise
 
-        // Function to generate Laplace noise
-        function laplaceMechanism(theta, sensitivity, epsilon) {
-            return theta.map(value => value + (Math.random() - 0.5) * (sensitivity / epsilon));
-        }
+        # Plot function
+        def update_plot(noise_type, epsilon):
+            if noise_type == 'Laplace':
+                y_vary_noise = X_test_b.dot(laplace_mechanism(theta_ols, 1, epsilon))
+                noise_label = 'with Laplace noise'
+            elif noise_type == 'Gaussian':
+                y_vary_noise = X_test_b.dot(add_gaussian_noise(theta_ols, epsilon, delta, sensitivity))
+                noise_label = 'with Gaussian noise'
 
-        // Function to generate Gaussian noise
-        function addGaussianNoise(theta, epsilon, delta, sensitivity) {
-            const sigma = sensitivity * Math.sqrt(2 * Math.log(1.25 / delta)) / epsilon;
-            return theta.map(value => value + Math.random() * sigma);
-        }
-
-        // Simulated data for plotting
-        const X_test = Array.from({ length: 10 }, (_, i) => i + 1); // Whole numbers from 1 to 10
-        const y_test = X_test.map(x => 3 * x + 5 + (Math.random() - 0.5) * 3); // noisy test data
-        const y_pred_olsr = X_test.map(x => 3 * x + 5); // OLS predicted values (no noise)
-        const theta_ols = [5, 3];
-        const sensitivity = 1;
-        const delta = 1e-5;
-
-        // Initial chart setup
-        let chart = new Chart(document.getElementById('noisePlot'), {
-            type: 'line',
-            data: {
-                labels: X_test,
-                datasets: [
+            # Prepare data for Chart.js
+            data = {
+                'labels': X_test.tolist(),
+                'datasets': [
                     {
-                        label: 'Test Data',
-                        data: y_test,
-                        borderColor: 'red',
-                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                        fill: false,
-                        pointRadius: 2,
-                        pointHoverRadius: 3,
-                        showLine: false
+                        'label': noise_label,
+                        'data': y_vary_noise.tolist(),
+                        'borderColor': 'blue',
+                        'fill': False,
                     },
                     {
-                        label: 'No Noise',
-                        data: y_pred_olsr,
-                        borderColor: 'yellow',
-                        backgroundColor: 'rgba(255, 205, 86, 0.2)',
-                        fill: false
+                        'label': 'Test Data',
+                        'data': y_test.tolist(),
+                        'borderColor': 'red',
+                        'fill': False,
+                        'pointRadius': 3,
+                        'showLine': False,
                     },
                     {
-                        label: 'With Noise',
-                        data: [],
-                        borderColor: 'blue',
-                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                        fill: false
-                    }
+                        'label': 'Without Noise',
+                        'data': y_pred_olsr.tolist(),
+                        'borderColor': 'yellow',
+                        'fill': False,
+                    },
                 ]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    x: {
-                        ticks: {
-                            stepSize: 1 // Set step size to 1 for whole numbers on the x-axis
+            }
+
+            # Chart configuration
+            config = {
+                'type': 'line',
+                'data': data,
+                'options': {
+                    'scales': {
+                        'x': {
+                            'beginAtZero': True,
+                        },
+                        'y': {
+                            'beginAtZero': True,
+                            'min': -10,  # Set appropriate limits based on your data
+                            'max': 40,   # Adjust according to your dataset
                         }
-                    },
-                    y: {
-                        suggestedMin: 0,
-                        suggestedMax: 40 // Adjusted y-axis range for better visibility
-                    }
-                },
-                plugins: {
-                    legend: {
-                        position: 'top',
                     }
                 }
             }
-        });
 
-        // Function to update the plot based on noise type and epsilon
-        function updatePlot() {
-            const noiseType = noiseTypeSelect.value;
-            const epsilon = parseFloat(epsilonInput.value);
+            # Render the chart
+            chart_canvas = document.getElementById('noisePlot')
+            chart = window.Chart(chart_canvas, config)
 
-            let y_vary_noise;
-            if (noiseType === 'Laplace') {
-                y_vary_noise = laplaceMechanism(y_pred_olsr, sensitivity, epsilon);
-            } else if (noiseType === 'Gaussian') {
-                y_vary_noise = addGaussianNoise(y_pred_olsr, epsilon, delta, sensitivity);
-            }
-
-            // Update the chart with new noise data
-            chart.data.datasets[2].data = y_vary_noise;
-            chart.data.datasets[2].label = `With ${noiseType} Noise (Epsilon=${epsilon})`;
-            chart.update();
-        }
-
-        // Initial plot update
-        updatePlot();
-    </script>
-
+        # Create an interactive plot
+        interact(update_plot,
+                 noise_type=widgets.Dropdown(options=['Laplace', 'Gaussian'], value='Laplace', description='Noise Type:'),
+                 epsilon=widgets.FloatSlider(value=1, min=0.01, max=20, step=0.01, description='Epsilon:'));
+    </py-script>
 </body>
 </html>
