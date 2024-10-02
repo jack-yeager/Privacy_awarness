@@ -18,7 +18,8 @@
             text-align: center;
         }
         canvas {
-            max-width: 100%;
+            max-width: 80%;
+            height: 400px;
         }
     </style>
 </head>
@@ -112,6 +113,12 @@
             },
             options: {
                 responsive: true,
+                scales: {
+                    y: {
+                        suggestedMin: 0,
+                        suggestedMax: 40 // Adjusted y-axis range for better visibility
+                    }
+                },
                 plugins: {
                     legend: {
                         position: 'top',
