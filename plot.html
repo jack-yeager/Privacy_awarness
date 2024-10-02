@@ -60,12 +60,12 @@
             updatePlot();
         });
 
-        // Function to generate Laplace noise
+        // Function to generate Laplace noise for theta
         function laplaceMechanism(theta, sensitivity, epsilon) {
             return theta.map(value => value + (Math.random() - 0.5) * (sensitivity / epsilon));
         }
 
-        // Function to generate Gaussian noise
+        // Function to generate Gaussian noise for theta
         function addGaussianNoise(theta, epsilon, delta, sensitivity) {
             const sigma = sensitivity * Math.sqrt(2 * Math.log(1.25 / delta)) / epsilon;
             return theta.map(value => value + Math.random() * sigma);
@@ -73,9 +73,8 @@
 
         // Simulated data for plotting
         const X_test = Array.from({ length: 10 }, (_, i) => i + 1); // Whole numbers from 1 to 10
-        const y_test = X_test.map(x => 3 * x + 5 + (Math.random() - 0.5) * 3); // noisy test data
-        const y_pred_olsr = X_test.map(x => 3 * x + 5); // OLS predicted values (no noise)
-        const theta_ols = [5, 3];
+        const y_test = X_test.map(x => 3 * x + 5 + (Math.random() - 0.5) * 3); // Noisy test data
+        const theta_ols = [5, 3]; // [intercept, slope] of the original linear model
         const sensitivity = 1;
         const delta = 1e-5;
 
@@ -97,7 +96,7 @@
                     },
                     {
                         label: 'No Noise',
-                        data: y_pred_olsr,
+                        data: X_test.map(x => theta_ols[1] * x + theta_ols[0]), // OLS predicted values (no noise)
                         borderColor: 'yellow',
                         backgroundColor: 'rgba(255, 205, 86, 0.2)',
                         fill: false
@@ -137,12 +136,15 @@
             const noiseType = noiseTypeSelect.value;
             const epsilon = parseFloat(epsilonInput.value);
 
-            let y_vary_noise;
+            let theta_noisy;
             if (noiseType === 'Laplace') {
-                y_vary_noise = laplaceMechanism(y_pred_olsr, sensitivity, epsilon);
+                theta_noisy = laplaceMechanism(theta_ols, sensitivity, epsilon);
             } else if (noiseType === 'Gaussian') {
-                y_vary_noise = addGaussianNoise(y_pred_olsr, epsilon, delta, sensitivity);
+                theta_noisy = addGaussianNoise(theta_ols, epsilon, delta, sensitivity);
             }
+
+            // Compute y values using the noisy theta parameters
+            const y_vary_noise = X_test.map(x => theta_noisy[1] * x + theta_noisy[0]);
 
             // Update the chart with new noise data
             chart.data.datasets[2].data = y_vary_noise;
