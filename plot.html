@@ -70,15 +70,15 @@
             return theta.map(value => value + Math.random() * sigma);
         }
 
-        // Initial simulated data for plotting
+        // Simulated data for plotting
         const X_test = Array.from({ length: 100 }, (_, i) => i * 0.1);
-        const y_test = X_test.map(x => 3 * x + 5 + (Math.random() - 0.5) * 3);
-        const y_pred_olsr = X_test.map(x => 3 * x + 5);
+        const y_test = X_test.map(x => 3 * x + 5 + (Math.random() - 0.5) * 3); // noisy test data
+        const y_pred_olsr = X_test.map(x => 3 * x + 5); // OLS predicted values (no noise)
         const theta_ols = [5, 3];
         const sensitivity = 1;
         const delta = 1e-5;
 
-        // Create the initial chart
+        // Initial chart setup
         let chart = new Chart(document.getElementById('noisePlot'), {
             type: 'line',
             data: {
@@ -88,6 +88,7 @@
                         label: 'Test Data',
                         data: y_test,
                         borderColor: 'red',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
                         fill: false,
                         pointRadius: 2,
                         pointHoverRadius: 3,
@@ -97,12 +98,14 @@
                         label: 'No Noise',
                         data: y_pred_olsr,
                         borderColor: 'yellow',
+                        backgroundColor: 'rgba(255, 205, 86, 0.2)',
                         fill: false
                     },
                     {
                         label: 'With Noise',
                         data: [],
                         borderColor: 'blue',
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
                         fill: false
                     }
                 ]
