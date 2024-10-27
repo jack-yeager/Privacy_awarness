@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Linear Regression with Differential Privacy</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <h1>Linear Regression with Differential Privacy</h1>
@@ -19,27 +19,20 @@
     <input type="range" id="epsilon" min="0.01" max="20" step="0.01" value="1" onchange="updatePlot()">
     <span id="epsilonValue">1</span>
 
-    <div id="plot"></div>
+    <canvas id="chart" width="800" height="600"></canvas>
 
     <script>
         // Generate initial data
-        const npRandomSeed = (seed) => {
-            let m_w = seed;
-            let m_z = 987654321;
-            const mask = 0xffffffff;
-
-            return function () {
-                m_z = (36969 * (m_z & 65535) + (m_z >> 16)) & mask;
-                m_w = (18000 * (m_w & 65535) + (m_w >> 16)) & mask;
-                let result = ((m_z << 16) + (m_w & 65535)) >>> 0;
-                result /= 4294967296;
-                return result + 0.5;
+        const randomSeed = (() => {
+            let seed = 42;
+            return () => {
+                const x = Math.sin(seed++) * 10000;
+                return x - Math.floor(x);
             };
-        };
+        })();
 
-        const random = npRandomSeed(42);
-        const X = Array.from({ length: 100 }, () => random() * 10);
-        const y = X.map(x => 2.5 * x + (random() - 0.5) * 4);
+        const X = Array.from({ length: 100 }, () => randomSeed() * 10);
+        const y = X.map(x => 2.5 * x + (randomSeed() - 0.5) * 4);
 
         // Linear regression function
         function olsRegression(X, y) {
@@ -58,13 +51,53 @@
         // Noise functions
         function addGaussianNoise(values, epsilon, delta = 1e-5, sensitivity = 1) {
             const sigma = Math.sqrt(2 * Math.log(1.25 / delta)) * sensitivity / epsilon;
-            return values.map(v => v + (random() - 0.5) * sigma);
+            return values.map(v => v + (randomSeed() - 0.5) * sigma);
         }
 
         function addLaplaceNoise(values, epsilon, sensitivity = 1) {
             const scale = sensitivity / epsilon;
-            return values.map(v => v + scale * (Math.log(1 - random()) - Math.log(random())));
+            return values.map(v => v + scale * (Math.log(1 - randomSeed()) - Math.log(randomSeed())));
         }
+
+        // Initialize Chart.js
+        let chart = new Chart(document.getElementById('chart').getContext('2d'), {
+            type: 'scatter',
+            data: {
+                datasets: [
+                    {
+                        label: 'Data',
+                        data: X.map((x, i) => ({ x, y: y[i] })),
+                        backgroundColor: 'red',
+                        pointRadius: 3
+                    },
+                    {
+                        label: 'Without Noise',
+                        data: [],
+                        type: 'line',
+                        borderColor: 'yellow',
+                        borderWidth: 2,
+                        fill: false
+                    },
+                    {
+                        label: 'With Noise',
+                        data: [],
+                        type: 'line',
+                        borderColor: 'blue',
+                        borderWidth: 2,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                scales: {
+                    x: { type: 'linear', position: 'bottom', title: { display: true, text: 'X' } },
+                    y: { title: { display: true, text: 'y' } }
+                },
+                plugins: {
+                    legend: { position: 'top' }
+                }
+            }
+        });
 
         // Update the plot
         function updatePlot() {
@@ -80,51 +113,24 @@
                 X_noisy = addGaussianNoise(X, epsilon);
             }
 
-            // Perform regression on noisy data
+            // Perform regression on noisy and original data
             const regressionNoisy = olsRegression(X_noisy, y);
             const regressionOriginal = olsRegression(X, y);
 
-            // Generate data points for the line
-            const X_line = [...Array(100).keys()].map(i => i / 10);
+            // Generate data points for regression lines
+            const X_line = Array.from({ length: 100 }, (_, i) => i / 10);
             const y_noisy = X_line.map(x => regressionNoisy.slope * x + regressionNoisy.intercept);
             const y_original = X_line.map(x => regressionOriginal.slope * x + regressionOriginal.intercept);
 
-            // Plot using Plotly
-            const data = [
-                {
-                    x: X,
-                    y: y,
-                    mode: 'markers',
-                    type: 'scatter',
-                    name: 'Data',
-                    marker: { color: 'red' }
-                },
-                {
-                    x: X_line,
-                    y: y_original,
-                    mode: 'lines',
-                    name: 'Without Noise',
-                    line: { color: 'yellow' }
-                },
-                {
-                    x: X_line,
-                    y: y_noisy,
-                    mode: 'lines',
-                    name: `With ${noiseType} Noise (ε=${epsilon})`,
-                    line: { color: 'blue' }
-                }
-            ];
+            // Update chart data
+            chart.data.datasets[1].data = X_line.map((x, i) => ({ x, y: y_original[i] }));
+            chart.data.datasets[2].data = X_line.map((x, i) => ({ x, y: y_noisy[i] }));
 
-            const layout = {
-                title: `Effect of Epsilon=${epsilon} with ${noiseType} noise`,
-                xaxis: { title: 'X' },
-                yaxis: { title: 'y' },
-            };
-
-            Plotly.newPlot('plot', data, layout);
+            // Redraw chart
+            chart.update();
         }
 
-        // Initialize plot
+        // Initial plot load
         window.onload = updatePlot;
     </script>
 </body>
