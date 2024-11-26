@@ -6,7 +6,6 @@
     <title>Multidimensional Linear Regression with Differential Privacy</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.9.0/math.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@transpiled/python.js"></script>
 </head>
 <body>
     <h1>Multidimensional Linear Regression with Differential Privacy</h1>
@@ -27,31 +26,23 @@
 
     <canvas id="chart" width="800" height="600"></canvas>
 
-    <script type="module">
-        // Load Sklearn modules using Pyodide
-        const pyodide = await loadPyodide();
-        await pyodide.loadPackage('scikit-learn');
-
+    <script>
         let X = []; // Multidimensional input
         let y = []; // Output
 
-        async function olsRegression(X, y) {
-            const code = `
-from sklearn.linear_model import LinearRegression
-import numpy as np
+        // Linear regression for multidimensional X
+        function olsRegression(X, y) {
+            const XMatrix = math.matrix(X);
+            const yVector = math.matrix(y);
 
-def fit_model(X, y):
-    model = LinearRegression()
-    model.fit(X, y)
-    return model.intercept_, model.coef_.tolist()
+            // Compute coefficients: β = (X^T X)^-1 X^T y
+            const XT = math.transpose(XMatrix);
+            const XTX = math.multiply(XT, XMatrix);
+            const XTXInv = math.inv(XTX);
+            const XTy = math.multiply(XT, yVector);
+            const coefficients = math.multiply(XTXInv, XTy);
 
-X = np.array(${JSON.stringify(X)})
-y = np.array(${JSON.stringify(y)})
-intercept, coefficients = fit_model(X, y)
-(intercept, coefficients)
-            `;
-            const result = await pyodide.runPythonAsync(code);
-            return result;
+            return coefficients.toArray(); // Return as array of coefficients
         }
 
         // Add Gaussian noise
@@ -107,7 +98,7 @@ intercept, coefficients = fit_model(X, y)
         });
 
         // Update the plot
-        async function updatePlot() {
+        function updatePlot() {
             if (X.length === 0 || y.length === 0) {
                 alert("Please upload a dataset first.");
                 return;
@@ -124,12 +115,12 @@ intercept, coefficients = fit_model(X, y)
                 X_noisy = addGaussianNoise(X, epsilon);
             }
 
-            const [interceptOriginal, coefficientsOriginal] = await olsRegression(X, y);
-            const [interceptNoisy, coefficientsNoisy] = await olsRegression(X_noisy, y);
+            const coefficientsOriginal = olsRegression(X, y);
+            const coefficientsNoisy = olsRegression(X_noisy, y);
 
             const X_projection = X.map(row => row[0]);
-            const y_original = X_projection.map(x => interceptOriginal + coefficientsOriginal[0] * x);
-            const y_noisy = X_projection.map(x => interceptNoisy + coefficientsNoisy[0] * x);
+            const y_original = X_projection.map(x => coefficientsOriginal[0] + coefficientsOriginal[1] * x);
+            const y_noisy = X_projection.map(x => coefficientsNoisy[0] + coefficientsNoisy[1] * x);
 
             chart.data.datasets[0].data = X.map((row, i) => ({ x: row[0], y: y[i] }));
             chart.data.datasets[1].data = X_projection.map((x, i) => ({ x, y: y_original[i] }));
