@@ -3,11 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Linear Regression with Differential Privacy</title>
+    <title>Multidimensional Linear Regression with Differential Privacy</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <h1>Linear Regression with Differential Privacy</h1>
+    <h1>Multidimensional Linear Regression with Differential Privacy</h1>
+
+    <label for="fileInput">Upload Dataset (CSV):</label>
+    <input type="file" id="fileInput" accept=".csv">
+    <br><br>
 
     <label for="noiseType">Select Noise Type:</label>
     <select id="noiseType" onchange="updatePlot()">
@@ -22,41 +26,35 @@
     <canvas id="chart" width="800" height="600"></canvas>
 
     <script>
-        // Generate initial data
-        const randomSeed = (() => {
-            let seed = 42;
-            return () => {
-                const x = Math.sin(seed++) * 10000;
-                return x - Math.floor(x);
-            };
-        })();
+        // Initialize empty data arrays
+        let X = []; // Multidimensional input
+        let y = []; // Output
 
-        const X = Array.from({ length: 100 }, () => randomSeed() * 10);
-        const y = X.map(x => 2.5 * x + (randomSeed() - 0.5) * 4);
-
-        // Linear regression function
+        // Linear regression for multidimensional X
         function olsRegression(X, y) {
-            const xMean = X.reduce((a, b) => a + b, 0) / X.length;
-            const yMean = y.reduce((a, b) => a + b, 0) / y.length;
+            const XMatrix = math.matrix(X);
+            const yVector = math.matrix(y);
 
-            const num = X.reduce((acc, x, i) => acc + (x - xMean) * (y[i] - yMean), 0);
-            const denom = X.reduce((acc, x) => acc + Math.pow(x - xMean, 2), 0);
+            // Compute coefficients: β = (X^T X)^-1 X^T y
+            const XT = math.transpose(XMatrix);
+            const XTX = math.multiply(XT, XMatrix);
+            const XTXInv = math.inv(XTX);
+            const XTy = math.multiply(XT, yVector);
+            const coefficients = math.multiply(XTXInv, XTy);
 
-            const slope = num / denom;
-            const intercept = yMean - slope * xMean;
-
-            return { slope, intercept };
+            return coefficients.toArray(); // Return as array of coefficients
         }
 
-        // Noise functions
-        function addGaussianNoise(values, epsilon, delta = 1e-5, sensitivity = 1) {
+        // Add Gaussian noise
+        function addGaussianNoise(matrix, epsilon, delta = 1e-5, sensitivity = 1) {
             const sigma = Math.sqrt(2 * Math.log(1.25 / delta)) * sensitivity / epsilon;
-            return values.map(v => v + (randomSeed() - 0.5) * sigma);
+            return matrix.map(row => row.map(value => value + (Math.random() - 0.5) * sigma));
         }
 
-        function addLaplaceNoise(values, epsilon, sensitivity = 1) {
+        // Add Laplace noise
+        function addLaplaceNoise(matrix, epsilon, sensitivity = 1) {
             const scale = sensitivity / epsilon;
-            return values.map(v => v + scale * (Math.log(1 - randomSeed()) - Math.log(randomSeed())));
+            return matrix.map(row => row.map(value => value + scale * (Math.log(1 - Math.random()) - Math.log(Math.random()))));
         }
 
         // Initialize Chart.js
@@ -65,13 +63,13 @@
             data: {
                 datasets: [
                     {
-                        label: 'Data',
-                        data: X.map((x, i) => ({ x, y: y[i] })),
+                        label: 'Original Data (2D projection)',
+                        data: [],
                         backgroundColor: 'red',
                         pointRadius: 3
                     },
                     {
-                        label: 'Without Noise',
+                        label: 'Regression Line (Original)',
                         data: [],
                         type: 'line',
                         borderColor: 'yellow',
@@ -79,7 +77,7 @@
                         fill: false
                     },
                     {
-                        label: 'With Noise',
+                        label: 'Regression Line (With Noise)',
                         data: [],
                         type: 'line',
                         borderColor: 'blue',
@@ -101,6 +99,11 @@
 
         // Update the plot
         function updatePlot() {
+            if (X.length === 0 || y.length === 0) {
+                alert("Please upload a dataset first.");
+                return;
+            }
+
             const noiseType = document.getElementById('noiseType').value;
             const epsilon = parseFloat(document.getElementById('epsilon').value);
             document.getElementById('epsilonValue').innerText = epsilon;
@@ -114,24 +117,67 @@
             }
 
             // Perform regression on noisy and original data
-            const regressionNoisy = olsRegression(X_noisy, y);
-            const regressionOriginal = olsRegression(X, y);
+            const coefficientsOriginal = olsRegression(X, y);
+            const coefficientsNoisy = olsRegression(X_noisy, y);
 
-            // Generate data points for regression lines
-            const X_line = Array.from({ length: 100 }, (_, i) => i / 10);
-            const y_noisy = X_line.map(x => regressionNoisy.slope * x + regressionNoisy.intercept);
-            const y_original = X_line.map(x => regressionOriginal.slope * x + regressionOriginal.intercept);
+            // Generate data points for regression lines (2D projection)
+            const X_projection = X.map(row => row[0]); // Take first column for simplicity
+            const y_original = X_projection.map(x => coefficientsOriginal[0] + coefficientsOriginal[1] * x);
+            const y_noisy = X_projection.map(x => coefficientsNoisy[0] + coefficientsNoisy[1] * x);
 
             // Update chart data
-            chart.data.datasets[1].data = X_line.map((x, i) => ({ x, y: y_original[i] }));
-            chart.data.datasets[2].data = X_line.map((x, i) => ({ x, y: y_noisy[i] }));
+            chart.data.datasets[0].data = X.map((row, i) => ({ x: row[0], y: y[i] })); // 2D projection
+            chart.data.datasets[1].data = X_projection.map((x, i) => ({ x, y: y_original[i] }));
+            chart.data.datasets[2].data = X_projection.map((x, i) => ({ x, y: y_noisy[i] }));
 
             // Redraw chart
             chart.update();
         }
 
-        // Initial plot load
-        window.onload = updatePlot;
+        // Function to parse CSV and update data
+        document.getElementById('fileInput').addEventListener('change', event => {
+            const file = event.target.files[0];
+            if (!file) {
+                alert("Please upload a valid CSV file.");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const content = e.target.result;
+
+                // Parse CSV
+                const rows = content.split("\n").map(row => row.split(","));
+                if (rows.length < 2) {
+                    alert("CSV must have at least two rows (header + data).");
+                    return;
+                }
+
+                // Assuming first row is headers
+                const [header, ...dataRows] = rows;
+                const yIndex = header.indexOf("y"); // Output column
+                const xIndices = header.filter((_, i) => i !== yIndex).map((_, i) => i); // Input columns
+
+                if (yIndex === -1 || xIndices.length === 0) {
+                    alert('CSV must have a column named "y" and at least one feature column.');
+                    return;
+                }
+
+                // Extract X and y
+                X = dataRows.map(row => xIndices.map(index => parseFloat(row[index]))).filter(row => row.every(value => !isNaN(value)));
+                y = dataRows.map(row => parseFloat(row[yIndex])).filter(value => !isNaN(value));
+
+                if (X.length === 0 || y.length === 0) {
+                    alert("No valid numerical data found.");
+                    return;
+                }
+
+                // Update the plot
+                updatePlot();
+            };
+
+            reader.readAsText(file);
+        });
     </script>
 </body>
 </html>
