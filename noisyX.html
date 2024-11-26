@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multidimensional Linear Regression with Differential Privacy</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.9.0/math.js"></script>
 </head>
 <body>
     <h1>Multidimensional Linear Regression with Differential Privacy</h1>
@@ -26,7 +27,6 @@
     <canvas id="chart" width="800" height="600"></canvas>
 
     <script>
-        // Initialize empty data arrays
         let X = []; // Multidimensional input
         let y = []; // Output
 
@@ -88,8 +88,8 @@
             },
             options: {
                 scales: {
-                    x: { type: 'linear', position: 'bottom', title: { display: true, text: 'X' } },
-                    y: { title: { display: true, text: 'y' } }
+                    x: { type: 'linear', position: 'bottom', title: { display: true, text: 'X (Feature 1)' } },
+                    y: { title: { display: true, text: 'y (Target)' } }
                 },
                 plugins: {
                     legend: { position: 'top' }
@@ -108,7 +108,6 @@
             const epsilon = parseFloat(document.getElementById('epsilon').value);
             document.getElementById('epsilonValue').innerText = epsilon;
 
-            // Add noise to X based on noise type
             let X_noisy;
             if (noiseType === 'Laplace') {
                 X_noisy = addLaplaceNoise(X, epsilon);
@@ -116,21 +115,17 @@
                 X_noisy = addGaussianNoise(X, epsilon);
             }
 
-            // Perform regression on noisy and original data
             const coefficientsOriginal = olsRegression(X, y);
             const coefficientsNoisy = olsRegression(X_noisy, y);
 
-            // Generate data points for regression lines (2D projection)
-            const X_projection = X.map(row => row[0]); // Take first column for simplicity
+            const X_projection = X.map(row => row[0]);
             const y_original = X_projection.map(x => coefficientsOriginal[0] + coefficientsOriginal[1] * x);
             const y_noisy = X_projection.map(x => coefficientsNoisy[0] + coefficientsNoisy[1] * x);
 
-            // Update chart data
-            chart.data.datasets[0].data = X.map((row, i) => ({ x: row[0], y: y[i] })); // 2D projection
+            chart.data.datasets[0].data = X.map((row, i) => ({ x: row[0], y: y[i] }));
             chart.data.datasets[1].data = X_projection.map((x, i) => ({ x, y: y_original[i] }));
             chart.data.datasets[2].data = X_projection.map((x, i) => ({ x, y: y_noisy[i] }));
 
-            // Redraw chart
             chart.update();
         }
 
@@ -145,34 +140,32 @@
             const reader = new FileReader();
             reader.onload = function (e) {
                 const content = e.target.result;
+                const rows = content.split("\n").map(row => row.split(",").map(cell => cell.trim()));
 
-                // Parse CSV
-                const rows = content.split("\n").map(row => row.split(","));
                 if (rows.length < 2) {
                     alert("CSV must have at least two rows (header + data).");
                     return;
                 }
 
-                // Assuming first row is headers
                 const [header, ...dataRows] = rows;
-                const yIndex = header.indexOf("y"); // Output column
-                const xIndices = header.filter((_, i) => i !== yIndex).map((_, i) => i); // Input columns
+                const yIndex = header.indexOf("y");
+                const xIndices = header.map((_, i) => i).filter(i => i !== yIndex);
 
                 if (yIndex === -1 || xIndices.length === 0) {
                     alert('CSV must have a column named "y" and at least one feature column.');
                     return;
                 }
 
-                // Extract X and y
-                X = dataRows.map(row => xIndices.map(index => parseFloat(row[index]))).filter(row => row.every(value => !isNaN(value)));
-                y = dataRows.map(row => parseFloat(row[yIndex])).filter(value => !isNaN(value));
+                X = dataRows.map(row => xIndices.map(index => parseFloat(row[index])))
+                            .filter(row => row.every(value => !isNaN(value)));
+                y = dataRows.map(row => parseFloat(row[yIndex]))
+                            .filter(value => !isNaN(value));
 
                 if (X.length === 0 || y.length === 0) {
                     alert("No valid numerical data found.");
                     return;
                 }
 
-                // Update the plot
                 updatePlot();
             };
 
