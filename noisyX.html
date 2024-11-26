@@ -24,6 +24,48 @@
     <label for="epsilon">Epsilon:</label>
     <input type="range" id="epsilon" min="0.01" max="20" step="0.01" value="1" onchange="updatePlot()">
     <span id="epsilonValue">1</span>
+    <label for="resampleType">Resample:</label>
+<select id="resampleType" onchange="resampleData()">
+    <option value="none">None</option>
+    <option value="downsample">Downsample</option>
+    <option value="upsample">Upsample</option>
+</select>
+
+<script>
+    function resampleData() {
+        const resampleType = document.getElementById('resampleType').value;
+
+        if (resampleType === 'none') {
+            // No resampling, use the original data
+            return;
+        }
+
+        if (resampleType === 'downsample') {
+            // Example: Reduce the dataset to half its size
+            const factor = 2;
+            X = X.filter((_, index) => index % factor === 0);
+            y = y.filter((_, index) => index % factor === 0);
+        }
+
+        if (resampleType === 'upsample') {
+            // Example: Duplicate each data point (not ideal for all cases)
+            const duplicatedX = [];
+            const duplicatedY = [];
+            X.forEach(row => {
+                duplicatedX.push(row, row); // Duplicating rows
+            });
+            y.forEach(val => {
+                duplicatedY.push(val, val); // Duplicating target
+            });
+            X = duplicatedX;
+            y = duplicatedY;
+        }
+
+        // Update the plot after resampling
+        updatePlot();
+    }
+</script>
+
 
     <canvas id="chart" width="800" height="600"></canvas>
 
@@ -65,7 +107,7 @@ intercept, coefficients = fit_model(X, y)
             const scale = sensitivity / epsilon;
             return matrix.map(row => row.map(value => value + scale * (Math.log(1 - Math.random()) - Math.log(Math.random()))));
         }
-
+        
         // Initialize Chart.js
         let chart = new Chart(document.getElementById('chart').getContext('2d'), {
             type: 'scatter',
