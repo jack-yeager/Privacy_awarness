@@ -102,6 +102,22 @@
             }
         });
 
+        // Function to randomly sample the dataset
+        function sampleData(X, y, size = 100) {
+            const sampledIndices = [];
+            while (sampledIndices.length < size) {
+                const randomIndex = Math.floor(Math.random() * X.length);
+                if (!sampledIndices.includes(randomIndex)) {
+                    sampledIndices.push(randomIndex);
+                }
+            }
+
+            const sampledX = sampledIndices.map(index => X[index]);
+            const sampledY = sampledIndices.map(index => y[index]);
+
+            return [sampledX, sampledY];
+        }
+
         // Update the plot
         function updatePlot() {
             if (X.length === 0 || y.length === 0) {
@@ -113,8 +129,11 @@
             const epsilon = parseFloat(document.getElementById('epsilon').value);
             document.getElementById('epsilonValue').innerText = epsilon;
 
+            // Sample the data to 100 points
+            const [sampledX, sampledY] = sampleData(X, y, 100);
+
             // Apply noise to the coefficients, not the features
-            const coefficientsOriginal = olsRegression(X, y);
+            const coefficientsOriginal = olsRegression(sampledX, sampledY);
 
             let coefficientsNoisy;
             if (noiseType === 'Laplace') {
@@ -124,12 +143,12 @@
             }
 
             // Compute predictions for original and noisy coefficients
-            const X_projection = X.map(row => row[1]); // Use the first feature for 2D projection
+            const X_projection = sampledX.map(row => row[1]); // Use the first feature for 2D projection
             const y_original = X_projection.map(x => coefficientsOriginal[0] + coefficientsOriginal[1] * x);
             const y_noisy = X_projection.map(x => coefficientsNoisy[0] + coefficientsNoisy[1] * x);
 
             // Update the chart
-            chart.data.datasets[0].data = X.map((row, i) => ({ x: row[1], y: y[i] })); // Scatter points
+            chart.data.datasets[0].data = sampledX.map((row, i) => ({ x: row[1], y: sampledY[i] })); // Scatter points
             chart.data.datasets[1].data = X_projection.map((x, i) => ({ x, y: y_original[i] })); // Original line
             chart.data.datasets[2].data = X_projection.map((x, i) => ({ x, y: y_noisy[i] })); // Noisy line
 
