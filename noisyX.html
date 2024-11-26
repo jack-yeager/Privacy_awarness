@@ -30,9 +30,18 @@
         let X = []; // Multidimensional input
         let y = []; // Output
 
-        // Add a bias column to X (for intercept term)
-        function addBias(X) {
-            return X.map(row => [1, ...row]); // Adds a 1 at the beginning of each row
+        // Add polynomial features (up to a given degree)
+        function addPolynomialFeatures(X, degree = 2) {
+            const X_poly = X.map(row => {
+                const newRow = [];
+                for (let i = 0; i < row.length; i++) {
+                    for (let d = 1; d <= degree; d++) {
+                        newRow.push(Math.pow(row[i], d)); // Add powers of each feature up to the given degree
+                    }
+                }
+                return newRow;
+            });
+            return X_poly;
         }
 
         // Linear regression for multidimensional X
@@ -132,8 +141,11 @@
             // Sample the data to 100 points
             const [sampledX, sampledY] = sampleData(X, y, 100);
 
-            // Apply noise to the coefficients, not the features
-            const coefficientsOriginal = olsRegression(sampledX, sampledY);
+            // Add polynomial features (degree 2) to the features
+            const sampledX_poly = addPolynomialFeatures(sampledX, 2);
+
+            // Apply regression to the polynomial features
+            const coefficientsOriginal = olsRegression(sampledX_poly, sampledY);
 
             let coefficientsNoisy;
             if (noiseType === 'Laplace') {
@@ -144,8 +156,8 @@
 
             // Compute predictions for original and noisy coefficients
             const X_projection = sampledX.map(row => row[1]); // Use the first feature for 2D projection
-            const y_original = X_projection.map(x => coefficientsOriginal[0] + coefficientsOriginal[1] * x);
-            const y_noisy = X_projection.map(x => coefficientsNoisy[0] + coefficientsNoisy[1] * x);
+            const y_original = X_projection.map(x => coefficientsOriginal[0] + coefficientsOriginal[1] * x + coefficientsOriginal[2] * Math.pow(x, 2));
+            const y_noisy = X_projection.map(x => coefficientsNoisy[0] + coefficientsNoisy[1] * x + coefficientsNoisy[2] * Math.pow(x, 2));
 
             // Update the chart
             chart.data.datasets[0].data = sampledX.map((row, i) => ({ x: row[1], y: sampledY[i] })); // Scatter points
@@ -182,10 +194,10 @@
                     return;
                 }
 
-                X = addBias(dataRows.map(row => xIndices.map(index => parseFloat(row[index])))
-                    .filter(row => row.every(value => !isNaN(value))));
+                X = dataRows.map(row => xIndices.map(index => parseFloat(row[index])))
+                            .filter(row => row.every(value => !isNaN(value)));
                 y = dataRows.map(row => parseFloat(row[yIndex]))
-                    .filter(value => !isNaN(value));
+                            .filter(value => !isNaN(value));
 
                 if (X.length === 0 || y.length === 0) {
                     alert("No valid numerical data found.");
